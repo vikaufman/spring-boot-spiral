@@ -1,38 +1,32 @@
 package com.example.demo;
 
 import com.vaadin.flow.component.button.Button;
+import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.Key;
-//import com.vaadin.flow.component.html.Div;
+
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
-//import com.vaadin.flow.component.html.Image;
-//import com.vaadin.flow.component.html.Paragraph;
+
+import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
+import com.vaadin.flow.component.checkbox.Checkbox;
 import com.vaadin.flow.component.textfield.TextField;
 import com.vaadin.flow.data.value.ValueChangeMode;
-// import com.vaadin.flow.router.PageTitle;
 import com.vaadin.flow.router.Route;
-import com.vaadin.flow.signals.local.ListSignal;
-//import com.vaadin.flow.dom.Element;
-//import com.vaadin.flow.server.streams.DownloadHandler;
-//import java.io.IOException;
-//import java.lang.Math;
+import com.vaadin.flow.signals.Signal;
 import com.vaadin.flow.signals.local.ValueSignal;
+import com.vaadin.flow.signals.shared.SharedListSignal;
+import com.vaadin.flow.component.icon.VaadinIcon;
 
 @Route("")
 public class MainView extends VerticalLayout {
-    // ValueSignal<String> nameSignal = new ValueSignal<>("");
     ValueSignal<String> createTaskSignal = new ValueSignal<>("");
+    
+    static SharedListSignal<Todo> todos = new SharedListSignal<>(Todo.class);
+    
     public MainView(TodoRepo repo) {
         add(new H1("Hello, Vaadin!"));
-        // TextField nameField = new TextField("Your name");
-        // nameField.setValueChangeMode(ValueChangeMode.EAGER);
-        // nameField.bindValue(nameSignal, nameSignal::set);
-        // Span greeting = new Span(() -> "Hello, " + nameSignal.get() + "!");
-        // greeting.bindVisible(() -> !nameSignal.get().isBlank());
-        // add(nameField, greeting);
-        ListSignal<Todo> todos = new ListSignal<>();
-
+        if (todos.peek().isEmpty()) 
         repo.findAll().forEach(todos::insertLast);
 
         TextField createTaskField = new TextField("Task");
@@ -52,8 +46,26 @@ public class MainView extends VerticalLayout {
 
         VerticalLayout todosLayout = new VerticalLayout();
         todosLayout.bindChildren(todos, todoSignal -> {
-            return new Span(todoSignal.map(Todo::getTask));
-        });
+            Signal <Boolean> doneSignal = todoSignal.map(Todo::isDone);           
+            Checkbox doneBox = new Checkbox();
+            doneBox.bindValue(doneSignal, done->{
+               todoSignal.update(todo -> {
+                    todo.setDone(done);                   
+                    return repo.save(todo);
+                });
+            });    
+            Span taskSpan = new Span(todoSignal.map(Todo::getTask));
+            taskSpan.getStyle().bind("text-decoration", () -> doneSignal.get() ? "line-through" : "none");
+            Button removeButton = new Button(VaadinIcon.TRASH.create());
+            removeButton.addClickListener(click -> {
+                repo.delete(todoSignal.peek());
+                todos.remove(todoSignal);
+            });
+            removeButton.addThemeVariants(ButtonVariant.SMALL, ButtonVariant.TERTIARY);
+            HorizontalLayout layout = new HorizontalLayout(doneBox, taskSpan, removeButton);
+            layout.setAlignItems(Alignment.BASELINE);
+            return layout;
+              });
     
         Span summary = new Span(() -> "Remaining tasks: " + todos.getValues().filter(todo -> !todo.isDone()).count());
         add(createTaskField, createTaskButton, todosLayout, summary);

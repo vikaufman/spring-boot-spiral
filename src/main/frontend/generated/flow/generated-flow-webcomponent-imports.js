@@ -5,6 +5,10 @@ import '@vaadin/text-field/src/vaadin-text-field.js';
 import '@vaadin/tooltip/src/vaadin-tooltip.js';
 import '@vaadin/button/src/vaadin-button.js';
 import 'Frontend/generated/jar-resources/disableOnClickFunctions.js';
+import '@vaadin/checkbox/src/vaadin-checkbox.js';
+import '@vaadin/icons/vaadin-iconset.js';
+import '@vaadin/icon/src/vaadin-icon.js';
+import '@vaadin/horizontal-layout/src/vaadin-horizontal-layout.js';
 import '@vaadin/common-frontend/ConnectionIndicator.js';
 import 'Frontend/generated/jar-resources/ReactRouterOutletElement.tsx';
 const loadOnDemand = (key) => { return Promise.resolve(0); }
