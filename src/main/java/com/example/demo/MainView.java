@@ -3,10 +3,8 @@ package com.example.demo;
 import com.vaadin.flow.component.button.Button;
 import com.vaadin.flow.component.button.ButtonVariant;
 import com.vaadin.flow.component.Key;
-
 import com.vaadin.flow.component.html.H1;
 import com.vaadin.flow.component.html.Span;
-
 import com.vaadin.flow.component.orderedlayout.HorizontalLayout;
 import com.vaadin.flow.component.orderedlayout.VerticalLayout;
 import com.vaadin.flow.component.checkbox.Checkbox;
@@ -20,49 +18,73 @@ import com.vaadin.flow.component.icon.VaadinIcon;
 
 @Route("")
 public class MainView extends VerticalLayout {
-    ValueSignal<String> createTaskSignal = new ValueSignal<>("");
+    private final ValueSignal<String> createTaskSignal = new ValueSignal<>("");
     
-    static SharedListSignal<Todo> todos = new SharedListSignal<>(Todo.class);
+    private static final SharedListSignal<Todo> todos = new SharedListSignal<>(Todo.class);
     
     public MainView(TodoRepo repo) {
         add(new H1("Hello, Vaadin!"));
-        if (todos.peek().isEmpty()) 
+        if (todos.peek().isEmpty()) {
         repo.findAll().forEach(todos::insertLast);
-
+        };
         TextField createTaskField = new TextField("Task");
+        //<theme-editor-local-classname>
+        createTaskField.addClassName("main-view-text-field-1");
         createTaskField.setValueChangeMode(ValueChangeMode.EAGER);        
         createTaskField.bindValue(createTaskSignal, createTaskSignal::set);
         
         Button createTaskButton = new Button("Create Task");
-        createTaskButton.addClickShortcut(Key.ENTER).listenOn(createTaskField);
+        
         createTaskButton.addClickListener(click -> {
             Todo todo = new Todo();
             todo.setTask(createTaskSignal.peek());
             repo.save(todo);
             todos.insertLast(todo);
             createTaskSignal.set("");      
-        });         
+        });
+        createTaskButton.addClickShortcut(Key.ENTER).listenOn(createTaskField);                
         createTaskButton.bindEnabled(() -> !createTaskSignal.get().isBlank());
 
         VerticalLayout todosLayout = new VerticalLayout();
         todosLayout.bindChildren(todos, todoSignal -> {
-            Signal <Boolean> doneSignal = todoSignal.map(Todo::isDone);           
+         ValueSignal<Boolean> editing = new ValueSignal<>(false);
+
+            Signal <Boolean> doneSignal = todoSignal.map(Todo::isDone);  
+            Signal<String> taskSignal = todoSignal.map(Todo::getTask);  
+               
             Checkbox doneBox = new Checkbox();
-            doneBox.bindValue(doneSignal, done->{
+            doneBox.bindValue(doneSignal, done-> {
                todoSignal.update(todo -> {
                     todo.setDone(done);                   
                     return repo.save(todo);
                 });
-            });    
+            });
+            TextField taskField = new TextField();
+            taskField.addKeyDownListener(Key.ESCAPE, event -> editing.set(false));
+                taskField.bindValue(taskSignal, task -> {
+                    todoSignal.update(todo -> {
+                        todo.setTask(task);
+                        return repo.save(todo);
+                    });
+                    editing.set(false);
+                 });
+            taskField.bindVisible(editing);
+
             Span taskSpan = new Span(todoSignal.map(Todo::getTask));
+            taskSpan.addDoubleClickListener(click -> {
+                editing.set(true);
+                taskField.focus();
+            });
+
             taskSpan.getStyle().bind("text-decoration", () -> doneSignal.get() ? "line-through" : "none");
+            taskSpan.bindVisible(Signal.not(editing));
             Button removeButton = new Button(VaadinIcon.TRASH.create());
             removeButton.addClickListener(click -> {
                 repo.delete(todoSignal.peek());
                 todos.remove(todoSignal);
             });
             removeButton.addThemeVariants(ButtonVariant.SMALL, ButtonVariant.TERTIARY);
-            HorizontalLayout layout = new HorizontalLayout(doneBox, taskSpan, removeButton);
+            HorizontalLayout layout = new HorizontalLayout(doneBox, taskField,taskSpan, removeButton);
             layout.setAlignItems(Alignment.BASELINE);
             return layout;
               });
